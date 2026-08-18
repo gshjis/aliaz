@@ -1,0 +1,14 @@
+sqlalchemy[asyncio]==2.0.52
+uvicorn==0.52.3
+pydantic==2.13.4
+pydantic-settings==2.8.0
+fastapi==0.141.1
+asyncpg==0.31.0
+aiosqlite==0.22.1
+email-validator==2.0.0
+./packages/config
+./packages/database
+./packages/auth
+./packages/translator
+./packages/schemas
+./packages/api

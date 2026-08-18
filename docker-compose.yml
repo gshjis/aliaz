@@ -1,0 +1,32 @@
+# Docker Compose автоматически читает файл .env из этой директории
+# для подстановки переменных (${VAR}) и (через env_file) для контейнеров.
+
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-aliaz}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-aliaz}
+      POSTGRES_DB: ${POSTGRES_DB:-aliaz}
+    expose:
+      - "5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-aliaz} -d ${POSTGRES_DB:-aliaz}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  web:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    # Публикуем только на loopback: доступ к приложению — только через
+    # хостовый nginx, который проксирует на 127.0.0.1:${PORT}.
+    ports:
+      - "127.0.0.1:${PORT}:${PORT}"
+    env_file:
+      - .env
+    command: sh -c "python init_db.py && uvicorn packages.api.api.main:app --host $$HOST --port $$PORT"
+    restart: unless-stopped
