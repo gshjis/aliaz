@@ -147,3 +147,4 @@ Thumbs.db
 *.temp
 
 *.db
+.ruff_cache

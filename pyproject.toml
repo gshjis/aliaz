@@ -58,6 +58,7 @@ select = [
 ]
 ignore = [
     "E501",  # line too long (handled by black)
+    "B008",  # FastAPI Depends() in function signatures is intentional
 ]
 
 [tool.ruff.format]
@@ -76,7 +77,14 @@ disallow_incomplete_defs = true
 check_untyped_defs = true
 no_implicit_reexport = true
 ignore_missing_imports = true
-disable_error_code = ["import-untyped", "missing-stubs"]
+disable_error_code = ["import-untyped"]
+
+# Тесты не требуют строгой типизации
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+check_untyped_defs = false
 
 [tool.isort]
 profile = "black"

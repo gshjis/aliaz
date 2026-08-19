@@ -19,6 +19,12 @@ class LoginRequest(BaseModel):
     password: str
 
 
+class RefreshRequest(BaseModel):
+    """Данные для обновления access-токена."""
+
+    refresh_token: str
+
+
 class UserResponse(BaseModel):
     """Публичные данные пользователя."""
 
@@ -31,7 +37,8 @@ class UserResponse(BaseModel):
 
 
 class TokenResponse(BaseModel):
-    """Ответ с JWT-токеном доступа."""
+    """Ответ с JWT-токенами доступа и обновления."""
 
     access_token: str
+    refresh_token: str
     token_type: str = "bearer"

@@ -1,10 +1,24 @@
-"""Роутер аутентификации: регистрация, авторизация, текущий пользователь."""
+"""Роутер аутентификации: регистрация, авторизация, обновление токена, текущий пользователь."""
 
-from auth import create_access_token, get_current_user, hash_password, verify_password
+import jwt
+from auth import (
+    create_access_token,
+    create_refresh_token,
+    decode_refresh_token,
+    get_current_user,
+    hash_password,
+    verify_password,
+)
 from database.connection import get_db
 from database.models import User
 from fastapi import APIRouter, Depends, HTTPException, status
-from schemas.auth import LoginRequest, RegisterRequest, TokenResponse, UserResponse
+from schemas.auth import (
+    LoginRequest,
+    RefreshRequest,
+    RegisterRequest,
+    TokenResponse,
+    UserResponse,
+)
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -20,7 +34,7 @@ async def register(
     payload: RegisterRequest,
     db: AsyncSession = Depends(get_db),
 ) -> TokenResponse:
-    """Зарегистрировать нового пользователя и вернуть JWT-токен."""
+    """Зарегистрировать нового пользователя и вернуть JWT-токены."""
     existing = await db.scalar(
         select(User).where(
             or_(User.email == payload.email, User.nickname == payload.nickname)
@@ -42,7 +56,10 @@ async def register(
     await db.commit()
     await db.refresh(user)
 
-    return TokenResponse(access_token=create_access_token(user.id))
+    return TokenResponse(
+        access_token=create_access_token(user.id),
+        refresh_token=create_refresh_token(user.id),
+    )
 
 
 @router.post("/login", response_model=TokenResponse)
@@ -50,14 +67,44 @@ async def login(
     payload: LoginRequest,
     db: AsyncSession = Depends(get_db),
 ) -> TokenResponse:
-    """Авторизовать пользователя по email и паролю."""
+    """Авторизовать пользователя по email и паролю и вернуть JWT-токены."""
     user = await db.scalar(select(User).where(User.email == payload.email))
     if user is None or not verify_password(payload.password, user.password_hash):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid credentials",
         )
-    return TokenResponse(access_token=create_access_token(user.id))
+    return TokenResponse(
+        access_token=create_access_token(user.id),
+        refresh_token=create_refresh_token(user.id),
+    )
+
+
+@router.post("/refresh", response_model=TokenResponse)
+async def refresh(
+    payload: RefreshRequest,
+    db: AsyncSession = Depends(get_db),
+) -> TokenResponse:
+    """Обновить access-токен с помощью refresh-токена (с ротацией refresh)."""
+    try:
+        user_id = decode_refresh_token(payload.refresh_token)
+    except jwt.PyJWTError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired refresh token",
+        ) from None
+
+    user = await db.get(User, user_id)
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired refresh token",
+        )
+
+    return TokenResponse(
+        access_token=create_access_token(user.id),
+        refresh_token=create_refresh_token(user.id),
+    )
 
 
 @router.get("/me", response_model=UserResponse)

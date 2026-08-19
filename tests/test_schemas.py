@@ -37,8 +37,8 @@ def test_register_request_short_password() -> None:
 
 def test_login_request_valid() -> None:
     """Валидные данные входа проходят."""
-    l = LoginRequest(email="alice@example.com", password="password123")
-    assert l.email == "alice@example.com"
+    login = LoginRequest(email="alice@example.com", password="password123")
+    assert login.email == "alice@example.com"
 
 
 def test_user_response_from_attributes() -> None:
@@ -59,8 +59,9 @@ def test_user_response_from_attributes() -> None:
 
 def test_token_response_default_type() -> None:
     """TokenResponse имеет тип токена 'bearer' по умолчанию."""
-    t = TokenResponse(access_token="xyz")
+    t = TokenResponse(access_token="xyz", refresh_token="abc")
     assert t.access_token == "xyz"
+    assert t.refresh_token == "abc"
     assert t.token_type == "bearer"
 
 

@@ -13,10 +13,15 @@ class Settings(BaseSettings):
     host: str = "0.0.0.0"
     port: int = 8000
 
+    # Разрешённые хосты для TrustedHostMiddleware.
+    # В продакшене задайте реальный домен через .env (ALLOWED_HOSTS=api.example.com).
+    allowed_hosts: list[str] = ["localhost", "127.0.0.1", "testserver"]
+
     # JWT
     jwt_secret: str = "change-me-in-production"
     jwt_algorithm: str = "HS256"
     jwt_expire_minutes: int = 60
+    jwt_refresh_expire_minutes: int = 60 * 24 * 7  # 7 дней
 
     model_config = SettingsConfigDict(
         env_file=".env",

@@ -1,12 +1,13 @@
 """FastAPI-зависимости для аутентификации."""
 
 import jwt
-from auth.security import decode_access_token
 from database.connection import get_db
 from database.models import User
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from auth.security import decode_access_token
 
 bearer_scheme = HTTPBearer(auto_error=False)
 
@@ -30,7 +31,7 @@ async def get_current_user(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired token",
             headers={"WWW-Authenticate": "Bearer"},
-        )
+        ) from None
 
     user = await db.get(User, user_id)
     if user is None:

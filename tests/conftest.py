@@ -7,8 +7,8 @@ in-memory базой данных (новый engine на каждый тест)
 
 import os
 
-# Используем in-memory БД для тестов, чтобы не зависеть от внешней БД.
 os.environ.setdefault("DATABASE_URL", "sqlite+aiosqlite:///:memory:")
+os.environ["ALLOWED_HOSTS"] = '["localhost", "127.0.0.1", "testserver"]'
 
 import pytest_asyncio
 from api.main import app
@@ -38,7 +38,7 @@ async def client():
 
     app.dependency_overrides[get_db] = _override_get_db
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+    async with AsyncClient(transport=transport, base_url="http://testserver") as ac:
         yield ac
 
     app.dependency_overrides.clear()

@@ -4,7 +4,9 @@ import jwt
 import pytest
 from auth.security import (
     create_access_token,
+    create_refresh_token,
     decode_access_token,
+    decode_refresh_token,
     hash_password,
     verify_password,
 )
@@ -59,3 +61,37 @@ def test_token_contains_expiry() -> None:
         token, settings.jwt_secret, algorithms=[settings.jwt_algorithm]
     )
     assert decoded["exp"] > time.time()
+
+
+def test_refresh_token_roundtrip() -> None:
+    """Refresh-токен декодируется в тот же user_id."""
+    token = create_refresh_token(7)
+    assert decode_refresh_token(token) == 7
+
+
+def test_refresh_token_has_longer_lifetime() -> None:
+    """Refresh-токен живёт дольше access-токена."""
+
+    access = create_access_token(1)
+    refresh = create_refresh_token(1)
+    access_exp = jwt.decode(
+        access, settings.jwt_secret, algorithms=[settings.jwt_algorithm]
+    )["exp"]
+    refresh_exp = jwt.decode(
+        refresh, settings.jwt_secret, algorithms=[settings.jwt_algorithm]
+    )["exp"]
+    assert refresh_exp > access_exp
+
+
+def test_access_token_rejected_as_refresh() -> None:
+    """Access-токен нельзя использовать как refresh-токен."""
+    access = create_access_token(1)
+    with pytest.raises(jwt.PyJWTError):
+        decode_refresh_token(access)
+
+
+def test_refresh_token_rejected_as_access() -> None:
+    """Refresh-токен нельзя использовать как access-токен."""
+    refresh = create_refresh_token(1)
+    with pytest.raises(jwt.PyJWTError):
+        decode_access_token(refresh)
