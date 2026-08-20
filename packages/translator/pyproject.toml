@@ -1,14 +1,16 @@
-[project]
+[tool.poetry]
 name = "translator"
 version = "0.1.0"
 description = "Абстракция сервиса перевода и заглушка (stub) для записи слов"
-authors = [
-    {name = "gshjis",email = "ilya.togan@gmail.com"}
-]
-requires-python = ">=3.12"
-dependencies = [
-]
+authors = ["gshjis <ilya.togan@gmail.com>"]
+readme = "README.md"
+packages = [{include = "translator"}]
 
+[tool.poetry.dependencies]
+python = "^3.12"
+openai = "^3.3.0"
+httpx = "^0.27.0"
+config = "^0.1.0"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]

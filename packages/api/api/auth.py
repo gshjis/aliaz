@@ -1,5 +1,7 @@
 """Роутер аутентификации: регистрация, авторизация, обновление токена, текущий пользователь."""
 
+import logging
+
 import jwt
 from auth import (
     create_access_token,
@@ -35,6 +37,8 @@ async def register(
     db: AsyncSession = Depends(get_db),
 ) -> TokenResponse:
     """Зарегистрировать нового пользователя и вернуть JWT-токены."""
+    logger = logging.getLogger(__name__)
+    logger.debug(f"Register attempt: nickname={payload.nickname}, email={payload.email}")
     existing = await db.scalar(
         select(User).where(
             or_(User.email == payload.email, User.nickname == payload.nickname)

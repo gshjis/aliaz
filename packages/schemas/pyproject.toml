@@ -1,18 +1,16 @@
-[project]
+[tool.poetry]
 name = "schemas"
 version = "0.1.0"
 description = ""
-authors = [
-    {name = "gshjis",email = "ilya.togan@gmail.com"}
-]
-requires-python = ">=3.12"
-dependencies = [
-    "pydantic (>=2.13.4,<3.0.0)"
-]
+authors = ["gshjis <ilya.togan@gmail.com>"]
+readme = "README.md"
+packages = [{include = "schemas"}]
+
+[tool.poetry.dependencies]
+python = "^3.12"
+pydantic = "^2.13.4"
+email-validator = "^2.0.0"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
-
-[tool.poetry]
-packages = [{include = "schemas"}]

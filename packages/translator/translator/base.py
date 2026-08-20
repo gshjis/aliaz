@@ -6,12 +6,17 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class TranslationResult:
-    """Результат перевода."""
+    """Результат перевода.
+
+    Содержит перевод, транскрипцию и исправленное (нормализованное) слово.
+    """
 
     source_text: str
     translated_text: str
     source_lang: str
     target_lang: str
+    transcription: str = ""
+    corrected_word: str = ""
 
 
 class Translator(ABC):

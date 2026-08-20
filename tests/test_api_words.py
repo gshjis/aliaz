@@ -24,8 +24,14 @@ async def test_create_word(client: AsyncClient) -> None:
     assert resp.status_code == 201
     body = resp.json()
     assert body["word_en"] == "hello"
-    assert body["translation"] == "[заглушка] hello"
+    assert body["translation"] is not None
+    assert (
+        "hello" in body["translation"].lower()
+        or "привет" in body["translation"].lower()
+    )
     assert body["id"] is not None
+    assert "transcription" in body
+    assert "corrected_word" in body
 
 
 async def test_create_word_unauthorized(client: AsyncClient) -> None:

@@ -1,126 +1,198 @@
-# API Aliaz
+# Пакет `api`
 
-Базовый URL (локально): `http://localhost:8000`. Если перед приложением стоит nginx — `http://localhost`.
+Пакет **`api`** — это **FastAPI-приложение**, верхний слой проекта. Он связывает все остальные пакеты вместе и предоставляет HTTP-интерфейс для клиентов.
 
-Все ответы — JSON. Текущая версия API имеет префикс **`/api/v1`**.
+> **Для новичка:** FastAPI — это веб-фреймворк для создания API. «Роутер» (router) — это набор обработчиков URL. «Эндпоинт» — конкретный URL, который принимает запросы (например, `POST /api/v1/auth/register`). Этот пакет — «лицо» проекта: всё, что видит пользователь, обрабатывается здесь.
 
-## Аутентификация
+---
 
-Защищённые эндпоинты требуют заголовок:
+## Назначение и роль в системе
 
-```
-Authorization: Bearer <access_token>
-```
+- **Создание FastAPI-приложения** — файл `main.py` собирает приложение, подключает middleware и роутеры.
+- **Обработка HTTP-запросов** — роутеры `auth.py` и `words.py` обрабатывают запросы к API.
+- **Связывание пакетов** — использует `auth` (безопасность), `database` (БД), `schemas` (валидация), `translator` (перевод), `config` (настройки).
 
-При входе/регистрации выдаётся пара токенов:
-- `access_token` — короткоживущий (по умолчанию 60 мин), используется для запросов.
-- `refresh_token` — долгоживущий (по умолчанию 7 дней), используется только для обновления `access_token`.
+Это **самый верхний** пакет — он зависит от всех остальных.
 
-Когда `access_token` истёк, отправьте `refresh_token` на `POST /api/v1/auth/refresh` и получите новую пару токенов (refresh ротируется).
+---
 
-## Эндпоинты
+## Структура пакета
 
-| Метод | Путь | Auth | Описание |
-|-------|------|------|----------|
-| GET | `/` | нет | Проверка работоспособности |
-| POST | `/api/v1/auth/register` | нет | Регистрация, возвращает токены |
-| POST | `/api/v1/auth/login` | нет | Вход, возвращает токены |
-| POST | `/api/v1/auth/refresh` | refresh-токен в теле | Обновление access-токена |
-| GET | `/api/v1/auth/me` | access | Данные текущего пользователя |
-| POST | `/api/v1/words` | access | Добавить слово (с переводом) |
-| GET | `/api/v1/words` | access | Список слов пользователя |
-| GET | `/api/v1/words/{id}` | access | Одно слово |
-| DELETE | `/api/v1/words/{id}` | access | Удалить слово |
-
-### GET /
-```json
-{ "status": "ok", "message": "Welcome to aliaz API" }
+```mermaid
+flowchart TD
+    root[packages/api/]
+    root --> pyproject[pyproject.toml<br/>Манифест Poetry-пакета]
+    root --> readme[README.md<br/>Этот файл]
+    root --> api[api/]
+    api --> init[__init__.py<br/>Экспортирует роутеры и app]
+    api --> main[main.py<br/>Создание FastAPI-приложения]
+    api --> auth[auth.py<br/>Роутер аутентификации]
+    api --> words[words.py<br/>Роутер слов]
 ```
 
-### POST /api/v1/auth/register
-```json
-// тело запроса
-{ "nickname": "alice", "email": "alice@example.com", "password": "password123", "telegram_nickname": "@alice" }
+### Порядок чтения файлов
 
-// ответ 201
-{ "access_token": "<jwt>", "refresh_token": "<jwt>", "token_type": "bearer" }
+1. `pyproject.toml` — понять зависимости.
+2. `api/main.py` — как создаётся приложение (middleware, роутеры).
+3. `api/auth.py` — роутер аутентификации.
+4. `api/words.py` — роутер слов.
+5. `api/__init__.py` — как пакет экспортирует наружу.
+
+---
+
+## `api/main.py` — создание приложения
+
+Это главный файл, который создаёт FastAPI-приложение.
+
+### Создание приложения
+
+```python
+app = FastAPI(
+    title=settings.app_name,
+    version=settings.app_version,
+    debug=settings.debug,
+)
 ```
 
-### POST /api/v1/auth/login
-```json
-// тело запроса
-{ "email": "alice@example.com", "password": "password123" }
+### Middleware (промежуточное ПО)
 
-// ответ 200
-{ "access_token": "<jwt>", "refresh_token": "<jwt>", "token_type": "bearer" }
+Middleware — это код, который обрабатывает запросы до того, как они попадут в эндпоинт, и ответы после.
+
+- **`CORSMiddleware`** — разрешает запросы с других доменов (CORS).
+- **`TrustedHostMiddleware`** — блокирует запросы с неразрешённых хостов.
+- **Rate limiter (slowapi)** — ограничивает частоту запросов (`200 в день`, `50 в час`).
+- **`log_requests`** — логирует входящие запросы (метод, путь, статус, время).
+
+### Подключение роутеров
+
+```python
+app.include_router(auth_router, prefix="/api/v1")
+app.include_router(words_router, prefix="/api/v1")
 ```
 
-### POST /api/v1/auth/refresh
-```json
-// тело запроса
-{ "refresh_token": "<jwt>" }
+Все эндпоинты получают префикс `/api/v1`.
 
-// ответ 200 — новая пара токенов
-{ "access_token": "<jwt>", "refresh_token": "<jwt>", "token_type": "bearer" }
-```
-Ошибки: `401`, если refresh-токен невалиден/просрочен или это не refresh-токен.
+### Корневой эндпоинт
 
-### GET /api/v1/auth/me
-Заголовок: `Authorization: Bearer <access_token>`
-```json
-// ответ 200
-{ "id": 1, "nickname": "alice", "email": "alice@example.com", "telegram_nickname": "@alice" }
+```python
+@app.get("/")
+async def root():
+    return {"status": "ok", "message": f"Welcome to {settings.app_name} API"}
 ```
 
-### POST /api/v1/words
-Заголовок: `Authorization: Bearer <access_token>`
-```json
-// тело запроса
-{ "word_en": "hello" }
+### Завершение работы
 
-// ответ 201
-{ "id": 1, "word_en": "hello", "translation": "[заглушка] hello", "created_at": "2026-08-19T12:00:00" }
-```
-> Перевод пока отдаётся заглушкой (`[заглушка] ...`).
-
-### GET /api/v1/words
-Заголовок: `Authorization: Bearer <access_token>`
-```json
-// ответ 200 — массив, новые сверху
-[ { "id": 2, "word_en": "world", "translation": "[заглушка] world", "created_at": "..." },
-  { "id": 1, "word_en": "hello", "translation": "[заглушка] hello", "created_at": "..." } ]
+```python
+@app.on_event("shutdown")
+async def shutdown_event():
+    await engine.dispose()  # закрыть соединения с БД
 ```
 
-### GET /api/v1/words/{id} и DELETE /api/v1/words/{id}
-Заголовок: `Authorization: Bearer <access_token>`. `GET` возвращает объект слова (200) или 404; `DELETE` возвращает 204 (без тела) или 404.
+---
 
-## Коды ошибок
+## `api/auth.py` — роутер аутентификации
 
-- `401` — нет токена, он невалиден/просрочен или не того типа
-- `409` — email или nickname уже заняты
-- `404` — объект не найден или нет доступа
-- `422` — невалидное тело запроса (не прошло валидацию)
+Роутер с префиксом `/auth`. Содержит эндпоинты:
 
-## Пример (fetch)
+| Метод | Путь | Описание |
+|-------|------|----------|
+| POST | `/auth/register` | Регистрация нового пользователя |
+| POST | `/auth/login` | Вход по email и паролю |
+| POST | `/auth/refresh` | Обновление access-токена |
+| GET | `/auth/me` | Данные текущего пользователя |
 
-```js
-// 1. Вход — получаем обе пары токенов
-const { access_token, refresh_token } = await fetch("/api/v1/auth/login", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({ email, password }),
-}).then((r) => r.json());
+### `register`
 
-// 2. Запрос с access-токеном
-let words = await fetch("/api/v1/words", {
-  headers: { Authorization: `Bearer ${access_token}` },
-}).then((r) => r.json());
+1. Принимает `RegisterRequest` (nickname, email, password, telegram_nickname).
+2. Проверяет, что email и nickname не заняты (иначе `409 Conflict`).
+3. Хэширует пароль через `hash_password`.
+4. Сохраняет пользователя в БД.
+5. Возвращает `TokenResponse` с access и refresh токенами.
 
-// 3. Когда access-токен истёк — обновляем через refresh-токен
-const refreshed = await fetch("/api/v1/auth/refresh", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({ refresh_token }),
-}).then((r) => r.json());
-// refreshed.access_token / refreshed.refresh_token — используем дальше
+### `login`
+
+1. Принимает `LoginRequest` (email, password).
+2. Ищет пользователя по email.
+3. Проверяет пароль через `verify_password`.
+4. При успехе возвращает токены; при неверных данных — `401`.
+
+### `refresh`
+
+1. Принимает `RefreshRequest` (refresh_token).
+2. Декодирует refresh-токен через `decode_refresh_token`.
+3. Проверяет, что пользователь существует.
+4. Возвращает новую пару токенов (refresh ротируется).
+
+### `me`
+
+1. Использует зависимость `get_current_user`.
+2. Возвращает данные текущего пользователя.
+
+---
+
+## `api/words.py` — роутер слов
+
+Роутер с префиксом `/words`. Все эндпоинты защищены зависимостью `get_current_user`.
+
+| Метод | Путь | Описание |
+|-------|------|----------|
+| POST | `/words` | Добавить слово (с переводом) |
+| GET | `/words` | Список слов пользователя |
+| GET | `/words/{id}` | Одно слово |
+| DELETE | `/words/{id}` | Удалить слово |
+
+### `create_word`
+
+1. Принимает `WordCreateRequest` (word_en, source_lang, target_lang).
+2. Получает переводчик через `get_translator()`.
+3. Переводит слово.
+4. Сохраняет слово с переводом, привязывая к текущему пользователю.
+
+### `list_words`
+
+Возвращает список слов текущего пользователя, отсортированный по дате создания (новые сверху).
+
+### `get_word`
+
+Возвращает одно слово. Если слово не найдено или принадлежит другому пользователю — `404`.
+
+### `delete_word`
+
+Удаляет слово. Если слово не найдено или чужое — `404`. При успехе — `204`.
+
+---
+
+## Зависимости
+
+| Пакет/библиотека | Зачем |
+|------------------|-------|
+| `fastapi` | Веб-фреймворк |
+| `uvicorn` | ASGI-сервер для запуска |
+| `slowapi` | Ограничение частоты запросов |
+| `config` | Настройки приложения |
+| `database` | Модели и сессии БД |
+| `auth` | Безопасность и зависимость текущего пользователя |
+| `schemas` | Валидация запросов и ответов |
+| `translator` | Сервис перевода |
+
+---
+
+## Примеры использования
+
+```python
+from api.main import app
+
+# Запуск приложения (из командной строки)
+# uvicorn packages.api.api.main:app --reload
 ```
+
+---
+
+## Связь с другими пакетами
+
+- **`config`** — настройки приложения (название, версия, debug, хосты, CORS).
+- **`database`** — модели `User`/`Word`, сессия `get_db`.
+- **`auth`** — функции безопасности и `get_current_user`.
+- **`schemas`** — Pydantic-схемы запросов/ответов.
+- **`translator`** — сервис перевода для добавления слов.
+- **`tests`** — интеграционные тесты API (см. `tests/test_api_auth.py`, `tests/test_api_words.py`).

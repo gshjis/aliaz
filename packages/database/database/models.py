@@ -31,4 +31,6 @@ class Word(Base):
     owner_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
     word_en: Mapped[str] = mapped_column(String(255), nullable=False)
     translation: Mapped[str | None] = mapped_column(String(255))
+    transcription: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    corrected_word: Mapped[str | None] = mapped_column(String(255), nullable=True)
     owner: Mapped["User"] = relationship(back_populates="words")

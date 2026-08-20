@@ -2,6 +2,8 @@
 
 from httpx import AsyncClient
 
+from database.connection import get_db
+
 
 async def _register(
     client: AsyncClient, nickname: str, email: str
@@ -110,6 +112,43 @@ async def test_refresh_invalid_token(client: AsyncClient) -> None:
     """Обновление с невалидным refresh-токеном — 401."""
     resp = await client.post(
         "/api/v1/auth/refresh", json={"refresh_token": "not.a.valid.token"}
+    )
+    assert resp.status_code == 401
+
+
+async def test_refresh_expired_token(client: AsyncClient) -> None:
+    """Просроченный refresh-токен отклоняется — 401."""
+    from datetime import datetime, timedelta, UTC
+    import jwt
+    from config.settings import settings
+
+    # Регистрируем пользователя через API
+    body = await _register(client, "expired_user", "expired@example.com")
+
+    # Получаем user_id через /auth/me
+    access_token = body["access_token"]
+    resp_me = await client.get(
+        "/api/v1/auth/me", headers={"Authorization": f"Bearer {access_token}"}
+    )
+    assert resp_me.status_code == 200
+    user_id = resp_me.json()["id"]
+
+    # Создаем просроченный refresh-токен
+    now = datetime.now(UTC)
+    payload = {
+        "sub": str(user_id),
+        "iat": now - timedelta(hours=1),
+        "exp": now - timedelta(minutes=1),
+        "type": "refresh",
+        "jti": "expired-jti",
+    }
+
+    expired_token = jwt.encode(
+        payload, settings.jwt_secret, algorithm=settings.jwt_algorithm
+    )
+
+    resp = await client.post(
+        "/api/v1/auth/refresh", json={"refresh_token": expired_token}
     )
     assert resp.status_code == 401
 

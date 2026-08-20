@@ -43,3 +43,19 @@ def test_user_word_relationship() -> None:
     word_rels = {r.key for r in word_inspect.relationships}
     assert "words" in user_rels
     assert "owner" in word_rels
+
+
+def test_user_unique_constraints() -> None:
+    """Поля nickname и email имеют уникальность."""
+    cols = User.__table__.columns
+    assert cols["nickname"].unique is True
+    assert cols["email"].unique is True
+
+
+def test_word_cascade_delete_orphan() -> None:
+    """Связь Word.owner имеет cascade delete-orphan."""
+    from sqlalchemy import inspect
+
+    user_inspect = inspect(User)
+    words_rel = user_inspect.relationships["words"]
+    assert "delete-orphan" in words_rel.cascade

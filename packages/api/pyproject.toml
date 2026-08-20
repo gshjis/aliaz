@@ -1,14 +1,21 @@
-[project]
+[tool.poetry]
 name = "api"
 version = "0.1.0"
 description = ""
-authors = [
-    {name = "gshjis",email = "ilya.togan@gmail.com"}
-]
-requires-python = ">=3.12"
-dependencies = [
-]
+authors = ["gshjis <ilya.togan@gmail.com>"]
+readme = "README.md"
+packages = [{include = "api"}]
 
+[tool.poetry.dependencies]
+python = "^3.12"
+fastapi = "^0.141.1"
+uvicorn = "^0.52.3"
+slowapi = "^0.1.10"
+auth = "^0.1.0"
+database = "^0.1.0"
+schemas = "^0.1.0"
+translator = "^0.1.0"
+config = "^0.1.0"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]

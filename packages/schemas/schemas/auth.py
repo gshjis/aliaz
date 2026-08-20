@@ -22,7 +22,7 @@ class LoginRequest(BaseModel):
 class RefreshRequest(BaseModel):
     """Данные для обновления access-токена."""
 
-    refresh_token: str
+    refresh_token: str = Field(min_length=1)
 
 
 class UserResponse(BaseModel):

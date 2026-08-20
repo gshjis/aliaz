@@ -22,6 +22,8 @@ auth = {path = "packages/auth", develop = true}
 translator = {path = "packages/translator", develop = true}
 schemas = {path = "packages/schemas", develop = true}
 api = {path = "packages/api", develop = true}
+openai = "^3.3.0"
+slowapi = "^0.1.10"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.2.0"

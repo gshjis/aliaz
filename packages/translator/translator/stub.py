@@ -20,4 +20,6 @@ class StubTranslator(Translator):
             translated_text=f"[заглушка] {text}",
             source_lang=source_lang,
             target_lang=target_lang,
+            transcription="",
+            corrected_word=text,
         )

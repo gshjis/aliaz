@@ -1,16 +1,15 @@
-[project]
+[tool.poetry]
 name = "config"
 version = "0.1.0"
 description = ""
-authors = [
-    {name = "gshjis",email = "ilya.togan@gmail.com"}
-]
-requires-python = ">=3.12"
-dependencies = [
-    "pydantic (>=2.13.4,<3.0.0)",
-    "pydantic-settings (>=2.8.0,<3.0.0)"
-]
+authors = ["gshjis <ilya.togan@gmail.com>"]
+readme = "README.md"
+packages = [{include = "config"}]
 
+[tool.poetry.dependencies]
+python = "^3.12"
+pydantic = "^2.13.4"
+pydantic-settings = "^2.8.0"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]

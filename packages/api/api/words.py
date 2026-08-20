@@ -22,14 +22,20 @@ async def create_word(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> Word:
-    """Добавить слово, получив перевод через сервис-переводчик (заглушка)."""
+    """Добавить слово, получив перевод через сервис-переводчик."""
     translator = get_translator()
-    result = await translator.translate(payload.word_en)
+    result = await translator.translate(
+        payload.word_en,
+        source_lang=payload.source_lang,
+        target_lang=payload.target_lang,
+    )
 
     word = Word(
         owner_id=current_user.id,
         word_en=payload.word_en,
         translation=result.translated_text,
+        transcription=result.transcription,
+        corrected_word=result.corrected_word or payload.word_en,
     )
     db.add(word)
     await db.commit()

@@ -2,7 +2,7 @@
 
 import pytest
 from pydantic import ValidationError
-from schemas.auth import LoginRequest, RegisterRequest, TokenResponse, UserResponse
+from schemas.auth import LoginRequest, RegisterRequest, RefreshRequest, TokenResponse, UserResponse
 from schemas.words import WordCreateRequest, WordResponse
 
 
@@ -84,8 +84,50 @@ def test_word_response_from_attributes() -> None:
         id = 1
         word_en = "hello"
         translation = "привет"
+        transcription = "[həˈləʊ]"
+        corrected_word = "hello"
         created_at = "2020-01-01T00:00:00"
 
     w = WordResponse.model_validate(FakeWord())
     assert w.translation == "привет"
     assert w.word_en == "hello"
+    assert w.transcription == "[həˈləʊ]"
+    assert w.corrected_word == "hello"
+
+
+def test_refresh_request_valid() -> None:
+    """RefreshRequest с валидным токеном проходит."""
+    r = RefreshRequest(refresh_token="valid.token.here")
+    assert r.refresh_token == "valid.token.here"
+
+
+def test_refresh_request_empty_token() -> None:
+    """RefreshRequest с пустым токеном отклоняется."""
+    with pytest.raises(ValidationError):
+        RefreshRequest(refresh_token="")
+
+
+def test_register_request_max_length_nickname() -> None:
+    """Слишком длинный nickname отклоняется."""
+    with pytest.raises(ValidationError):
+        RegisterRequest(
+            nickname="a" * 256,
+            email="alice@example.com",
+            password="password123",
+        )
+
+
+def test_register_request_max_length_password() -> None:
+    """Слишком длинный пароль отклоняется."""
+    with pytest.raises(ValidationError):
+        RegisterRequest(
+            nickname="alice",
+            email="alice@example.com",
+            password="a" * 129,
+        )
+
+
+def test_login_request_invalid_email() -> None:
+    """LoginRequest с невалидным email отклоняется."""
+    with pytest.raises(ValidationError):
+        LoginRequest(email="not-an-email", password="password123")
