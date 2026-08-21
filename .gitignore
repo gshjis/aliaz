@@ -149,3 +149,5 @@ Thumbs.db
 *.db
 .ruff_cache
 plans
+DEPLOYMENT.md
+README.md
