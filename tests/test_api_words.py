@@ -7,7 +7,7 @@ async def _register_and_token(client: AsyncClient, nickname: str, email: str) ->
     """Зарегистрировать пользователя и вернуть JWT-токен."""
     resp = await client.post(
         "/api/v1/auth/register",
-        json={"nickname": nickname, "email": email, "password": "password123"},
+        json={"nickname": nickname, "email": email, "password": "Password123!"},
     )
     assert resp.status_code == 201
     return str(resp.json()["access_token"])
@@ -32,6 +32,7 @@ async def test_create_word(client: AsyncClient) -> None:
     assert body["id"] is not None
     assert "transcription" in body
     assert "corrected_word" in body
+    assert body["language_swapped"] is False
 
 
 async def test_create_word_unauthorized(client: AsyncClient) -> None:

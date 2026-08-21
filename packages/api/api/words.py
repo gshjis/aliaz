@@ -36,6 +36,7 @@ async def create_word(
         translation=result.translated_text,
         transcription=result.transcription,
         corrected_word=result.corrected_word or payload.word_en,
+        language_swapped=result.language_swapped,
     )
     db.add(word)
     await db.commit()

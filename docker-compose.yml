@@ -55,5 +55,13 @@ services:
           cpus: "0.25"
           memory: 256M
 
+  frontend:
+    build: ./frontend
+    depends_on:
+      - web
+    ports:
+      - "127.0.0.1:${FRONTEND_PORT:-3000}:80"
+    restart: unless-stopped
+
 volumes:
   postgres_data:

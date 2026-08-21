@@ -14,17 +14,25 @@ __all__ = [
 ]
 
 
+_translator: Translator | None = None
+
+
 def get_translator() -> Translator:
     """Вернуть активный сервис перевода.
 
-    На текущем этапе возвращается заглушка. В дальнейшем здесь можно
-    подключать реального провайдера (DeepL, Google Translate и т.д.)
-    на основе конфигурации.
+    Если задан ключ OpenAI — возвращается OpenAITranslator, иначе —
+    StubTranslator. Инстанс кэшируется на уровне модуля.
     """
+    global _translator
+    if _translator is not None:
+        return _translator
+
     if settings.openai_api_key:
-        return OpenAITranslator(
+        _translator = OpenAITranslator(
             api_key=settings.openai_api_key,
             base_url=settings.openai_base_url,
             model=settings.openai_model,
         )
-    return StubTranslator()
+    else:
+        _translator = StubTranslator()
+    return _translator

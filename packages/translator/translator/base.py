@@ -17,6 +17,7 @@ class TranslationResult:
     target_lang: str
     transcription: str = ""
     corrected_word: str = ""
+    language_swapped: bool = False
 
 
 class Translator(ABC):

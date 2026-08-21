@@ -1,6 +1,6 @@
 """Тесты моделей базы данных (пакет database.models)."""
 
-from database.models import Base, User, Word
+from database.models import Base, RefreshToken, User, Word
 from sqlalchemy import inspect
 
 
@@ -59,3 +59,30 @@ def test_word_cascade_delete_orphan() -> None:
     user_inspect = inspect(User)
     words_rel = user_inspect.relationships["words"]
     assert "delete-orphan" in words_rel.cascade
+
+
+def test_word_created_at_default_is_callable() -> None:
+    """default для created_at — callable, а не фиксированное значение."""
+    col = Word.__table__.columns["created_at"]
+    assert callable(col.default.arg)
+
+
+def test_refresh_token_table() -> None:
+    """Модель RefreshToken имеет ожидаемую таблицу и поля."""
+    assert RefreshToken.__tablename__ == "refresh_tokens"
+    cols = RefreshToken.__table__.columns
+    assert cols["jti"].unique is True
+    assert cols["jti"].nullable is False
+    assert cols["user_id"].nullable is False
+    assert cols["expires_at"].nullable is False
+    assert cols["revoked"].nullable is False
+
+
+def test_user_refresh_token_relationship() -> None:
+    """Связь User.refresh_tokens <-> RefreshToken.user настроена."""
+    user_inspect = inspect(User)
+    token_inspect = inspect(RefreshToken)
+    user_rels = {r.key for r in user_inspect.relationships}
+    token_rels = {r.key for r in token_inspect.relationships}
+    assert "refresh_tokens" in user_rels
+    assert "user" in token_rels

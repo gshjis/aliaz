@@ -22,4 +22,5 @@ class StubTranslator(Translator):
             target_lang=target_lang,
             transcription="",
             corrected_word=text,
+            language_swapped=False,
         )

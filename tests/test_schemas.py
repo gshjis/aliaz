@@ -9,7 +9,7 @@ from schemas.words import WordCreateRequest, WordResponse
 def test_register_request_valid() -> None:
     """Валидные данные регистрации проходят."""
     r = RegisterRequest(
-        nickname="alice", email="alice@example.com", password="password123"
+        nickname="alice", email="alice@example.com", password="Password123!"
     )
     assert r.nickname == "alice"
     assert r.telegram_nickname is None
@@ -19,14 +19,14 @@ def test_register_request_short_nickname() -> None:
     """Слишком короткий nickname отклоняется."""
     with pytest.raises(ValidationError):
         RegisterRequest(
-            nickname="ab", email="alice@example.com", password="password123"
+            nickname="ab", email="alice@example.com", password="Password123!"
         )
 
 
 def test_register_request_invalid_email() -> None:
     """Невалидный email отклоняется."""
     with pytest.raises(ValidationError):
-        RegisterRequest(nickname="alice", email="not-an-email", password="password123")
+        RegisterRequest(nickname="alice", email="not-an-email", password="Password123!")
 
 
 def test_register_request_short_password() -> None:
@@ -35,9 +35,27 @@ def test_register_request_short_password() -> None:
         RegisterRequest(nickname="alice", email="alice@example.com", password="short")
 
 
+def test_register_request_password_no_letter() -> None:
+    """Пароль без букв отклоняется."""
+    with pytest.raises(ValidationError):
+        RegisterRequest(nickname="alice", email="alice@example.com", password="12345678!")
+
+
+def test_register_request_password_no_digit() -> None:
+    """Пароль без цифр отклоняется."""
+    with pytest.raises(ValidationError):
+        RegisterRequest(nickname="alice", email="alice@example.com", password="Password!")
+
+
+def test_register_request_password_no_special() -> None:
+    """Пароль без спецсимвола отклоняется."""
+    with pytest.raises(ValidationError):
+        RegisterRequest(nickname="alice", email="alice@example.com", password="Password123")
+
+
 def test_login_request_valid() -> None:
     """Валидные данные входа проходят."""
-    login = LoginRequest(email="alice@example.com", password="password123")
+    login = LoginRequest(email="alice@example.com", password="Password123!")
     assert login.email == "alice@example.com"
 
 
@@ -113,7 +131,7 @@ def test_register_request_max_length_nickname() -> None:
         RegisterRequest(
             nickname="a" * 256,
             email="alice@example.com",
-            password="password123",
+            password="Password123!",
         )
 
 
@@ -130,4 +148,4 @@ def test_register_request_max_length_password() -> None:
 def test_login_request_invalid_email() -> None:
     """LoginRequest с невалидным email отклоняется."""
     with pytest.raises(ValidationError):
-        LoginRequest(email="not-an-email", password="password123")
+        LoginRequest(email="not-an-email", password="Password123!")

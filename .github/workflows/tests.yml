@@ -26,5 +26,20 @@ jobs:
         # из dev-группы (pytest ^8.2.0, pytest-asyncio ^0.24.0)
         run: poetry install
 
+      - name: Run ruff check
+        run: poetry run ruff check packages/ tests/
+
+      - name: Run ruff format check
+        run: poetry run ruff format --check packages/ tests/
+
+      - name: Run mypy
+        run: poetry run mypy packages/ tests/
+
+      - name: Run black check
+        run: poetry run black --check packages/ tests/
+
+      - name: Run isort check
+        run: poetry run isort --check-only packages/ tests/
+
       - name: Run tests
         run: poetry run pytest -q

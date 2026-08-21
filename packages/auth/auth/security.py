@@ -7,6 +7,9 @@ from typing import Any
 import bcrypt
 import jwt
 from config import settings
+from database.models import RefreshToken
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 
 def hash_password(password: str) -> str:
@@ -77,3 +80,55 @@ def decode_refresh_token(token: str) -> int:
     if sub is None:
         raise jwt.PyJWTError("Token sub is missing")
     return int(str(sub))
+
+
+def get_token_jti(token: str) -> str:
+    """Вернуть jti из refresh-токена.
+
+    Raises:
+        jwt.PyJWTError: если токен невалиден или не является refresh-токеном.
+    """
+    payload = jwt.decode(
+        token, settings.jwt_secret, algorithms=[settings.jwt_algorithm]
+    )
+    if payload.get("type") != "refresh":
+        raise jwt.PyJWTError("Not a refresh token")
+    jti = payload.get("jti")
+    if jti is None:
+        raise jwt.PyJWTError("Token jti is missing")
+    return str(jti)
+
+
+async def store_refresh_token(
+    db: AsyncSession, user_id: int, jti: str, expires_at: datetime
+) -> None:
+    """Сохранить refresh-токен в БД для отслеживания ротации."""
+    db.add(
+        RefreshToken(
+            jti=jti,
+            user_id=user_id,
+            expires_at=expires_at,
+            revoked=False,
+        )
+    )
+    await db.commit()
+
+
+async def is_refresh_token_revoked(db: AsyncSession, jti: str) -> bool:
+    """Вернуть True, если refresh-токен отозван или не существует."""
+    token = await db.scalar(
+        select(RefreshToken).where(RefreshToken.jti == jti)
+    )
+    if token is None:
+        return True
+    return token.revoked
+
+
+async def revoke_refresh_token(db: AsyncSession, jti: str) -> None:
+    """Пометить refresh-токен как отозванный."""
+    token = await db.scalar(
+        select(RefreshToken).where(RefreshToken.jti == jti)
+    )
+    if token is not None:
+        token.revoked = True
+        await db.commit()

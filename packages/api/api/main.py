@@ -66,6 +66,12 @@ async def root() -> dict[str, str]:
     return {"status": "ok", "message": f"Welcome to {settings.app_name} API"}
 
 
+@app.get("/health")
+async def health() -> dict[str, str]:
+    """Эндпоинт для healthcheck: проверка работоспособности сервиса."""
+    return {"status": "ok", "message": "healthy"}
+
+
 @app.on_event("shutdown")
 async def shutdown_event() -> None:
     """Закрыть соединения с БД при graceful shutdown."""

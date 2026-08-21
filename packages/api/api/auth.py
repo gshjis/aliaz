@@ -1,6 +1,7 @@
 """Роутер аутентификации: регистрация, авторизация, обновление токена, текущий пользователь."""
 
 import logging
+from datetime import UTC, datetime, timedelta
 
 import jwt
 from auth import (
@@ -8,9 +9,14 @@ from auth import (
     create_refresh_token,
     decode_refresh_token,
     get_current_user,
+    get_token_jti,
     hash_password,
+    is_refresh_token_revoked,
+    revoke_refresh_token,
+    store_refresh_token,
     verify_password,
 )
+from config import settings
 from database.connection import get_db
 from database.models import User
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -25,6 +31,22 @@ from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+
+
+async def _issue_tokens(db: AsyncSession, user_id: int) -> TokenResponse:
+    """Создать пару токенов и сохранить refresh-токен в БД."""
+    refresh_token = create_refresh_token(user_id)
+    await store_refresh_token(
+        db,
+        user_id=user_id,
+        jti=get_token_jti(refresh_token),
+        expires_at=datetime.now(UTC)
+        + timedelta(minutes=settings.jwt_refresh_expire_minutes),
+    )
+    return TokenResponse(
+        access_token=create_access_token(user_id),
+        refresh_token=refresh_token,
+    )
 
 
 @router.post(
@@ -60,10 +82,7 @@ async def register(
     await db.commit()
     await db.refresh(user)
 
-    return TokenResponse(
-        access_token=create_access_token(user.id),
-        refresh_token=create_refresh_token(user.id),
-    )
+    return await _issue_tokens(db, user.id)
 
 
 @router.post("/login", response_model=TokenResponse)
@@ -78,10 +97,7 @@ async def login(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid credentials",
         )
-    return TokenResponse(
-        access_token=create_access_token(user.id),
-        refresh_token=create_refresh_token(user.id),
-    )
+    return await _issue_tokens(db, user.id)
 
 
 @router.post("/refresh", response_model=TokenResponse)
@@ -92,11 +108,18 @@ async def refresh(
     """Обновить access-токен с помощью refresh-токена (с ротацией refresh)."""
     try:
         user_id = decode_refresh_token(payload.refresh_token)
+        jti = get_token_jti(payload.refresh_token)
     except jwt.PyJWTError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired refresh token",
         ) from None
+
+    if await is_refresh_token_revoked(db, jti):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired refresh token",
+        )
 
     user = await db.get(User, user_id)
     if user is None:
@@ -105,10 +128,9 @@ async def refresh(
             detail="Invalid or expired refresh token",
         )
 
-    return TokenResponse(
-        access_token=create_access_token(user.id),
-        refresh_token=create_refresh_token(user.id),
-    )
+    # Ротация: отзываем старый refresh-токен и выдаём новую пару.
+    await revoke_refresh_token(db, jti)
+    return await _issue_tokens(db, user.id)
 
 
 @router.get("/me", response_model=UserResponse)

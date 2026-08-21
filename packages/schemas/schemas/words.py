@@ -21,6 +21,7 @@ class WordResponse(BaseModel):
     translation: str | None
     transcription: str | None
     corrected_word: str | None
+    language_swapped: bool = False
     created_at: datetime
 
     model_config = {"from_attributes": True}

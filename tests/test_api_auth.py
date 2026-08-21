@@ -10,7 +10,7 @@ async def _register(
 ) -> dict[str, object]:
     resp = await client.post(
         "/api/v1/auth/register",
-        json={"nickname": nickname, "email": email, "password": "password123"},
+        json={"nickname": nickname, "email": email, "password": "Password123!"},
     )
     assert resp.status_code == 201
     return dict(resp.json())
@@ -29,7 +29,7 @@ async def test_register_duplicate(client: AsyncClient) -> None:
     await _register(client, "bob", "bob@example.com")
     resp = await client.post(
         "/api/v1/auth/register",
-        json={"nickname": "bob", "email": "bob@example.com", "password": "password123"},
+        json={"nickname": "bob", "email": "bob@example.com", "password": "Password123!"},
     )
     assert resp.status_code == 409
 
@@ -39,7 +39,7 @@ async def test_login_success(client: AsyncClient) -> None:
     await _register(client, "carol", "carol@example.com")
     resp = await client.post(
         "/api/v1/auth/login",
-        json={"email": "carol@example.com", "password": "password123"},
+        json={"email": "carol@example.com", "password": "Password123!"},
     )
     assert resp.status_code == 200
     body = resp.json()
@@ -52,7 +52,7 @@ async def test_login_invalid_password(client: AsyncClient) -> None:
     await _register(client, "dave", "dave@example.com")
     resp = await client.post(
         "/api/v1/auth/login",
-        json={"email": "dave@example.com", "password": "wrongpass"},
+        json={"email": "dave@example.com", "password": "Wrongpass123!"},
     )
     assert resp.status_code == 401
 
@@ -61,7 +61,7 @@ async def test_login_unknown_email(client: AsyncClient) -> None:
     """Вход с неизвестным email — 401."""
     resp = await client.post(
         "/api/v1/auth/login",
-        json={"email": "nobody@example.com", "password": "password123"},
+        json={"email": "nobody@example.com", "password": "Password123!"},
     )
     assert resp.status_code == 401
 
@@ -161,3 +161,29 @@ async def test_refresh_rejects_access_token(client: AsyncClient) -> None:
         "/api/v1/auth/refresh", json={"refresh_token": access_token}
     )
     assert resp.status_code == 401
+
+
+async def test_refresh_rotation_revokes_old_token(client: AsyncClient) -> None:
+    """После ротации старый refresh-токен отклоняется — 401."""
+    body = await _register(client, "henry", "henry@example.com")
+    old_refresh = body["refresh_token"]
+
+    # Первый refresh — успешен, выдаёт новую пару.
+    resp = await client.post(
+        "/api/v1/auth/refresh", json={"refresh_token": old_refresh}
+    )
+    assert resp.status_code == 200
+    new_tokens = resp.json()
+    assert new_tokens["refresh_token"] != old_refresh
+
+    # Повторное использование старого refresh-токена — 401 (ротация).
+    resp2 = await client.post(
+        "/api/v1/auth/refresh", json={"refresh_token": old_refresh}
+    )
+    assert resp2.status_code == 401
+
+    # Новый refresh-токен работает.
+    resp3 = await client.post(
+        "/api/v1/auth/refresh", json={"refresh_token": new_tokens["refresh_token"]}
+    )
+    assert resp3.status_code == 200
